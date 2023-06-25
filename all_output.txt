@@ -1,0 +1,146 @@
+To create a simple todo app using Node.js and save the todos as JSON on the local filesystem, we will use the following packages:
+
+1. express: A web framework for Node.js
+2. body-parser: Middleware to parse the request body
+3. fs: Built-in Node.js module to interact with the filesystem
+
+First, let's create a package.json file to manage our dependencies:
+
+package.json
+```json
+{
+  "name": "todo-app",
+  "version": "1.0.0",
+  "description": "A simple todo app using Node.js and saving todos as JSON on the local filesystem",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js"
+  },
+  "dependencies": {
+    "body-parser": "^1.19.0",
+    "express": "^4.17.1"
+  }
+}
+```
+
+Now, let's create the main entry point for our application, app.js:
+
+app.js
+```javascript
+const express = require('express');
+const bodyParser = require('body-parser');
+const fs = require('fs');
+const todoRoutes = require('./routes/todoRoutes');
+
+const app = express();
+const port = 8000;
+
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
+
+app.use('/todos', todoRoutes);
+
+app.listen(port, () => {
+  console.log(`Todo app listening at http://localhost:${port}`);
+});
+```
+
+Next, let's create the routes for our todo app in a separate file, routes/todoRoutes.js:
+
+routes/todoRoutes.js
+```javascript
+const express = require('express');
+const router = express.Router();
+const todoController = require('../controllers/todoController');
+
+router.get('/', todoController.getAllTodos);
+router.post('/', todoController.createTodo);
+router.get('/:id', todoController.getTodoById);
+router.put('/:id', todoController.updateTodo);
+router.delete('/:id', todoController.deleteTodo);
+
+module.exports = router;
+```
+
+Now, let's create the controller for our todo app in a separate file, controllers/todoController.js:
+
+controllers/todoController.js
+```javascript
+const fs = require('fs');
+const path = require('path');
+const todoFilePath = path.join(__dirname, '../data/todos.json');
+
+const readTodosFromFile = () => {
+  try {
+    const data = fs.readFileSync(todoFilePath, 'utf8');
+    return JSON.parse(data);
+  } catch (err) {
+    return [];
+  }
+};
+
+const writeTodosToFile = (todos) => {
+  fs.writeFileSync(todoFilePath, JSON.stringify(todos, null, 2));
+};
+
+exports.getAllTodos = (req, res) => {
+  const todos = readTodosFromFile();
+  res.json(todos);
+};
+
+exports.createTodo = (req, res) => {
+  const todos = readTodosFromFile();
+  const newTodo = {
+    id: todos.length + 1,
+    title: req.body.title,
+    completed: false,
+  };
+  todos.push(newTodo);
+  writeTodosToFile(todos);
+  res.status(201).json(newTodo);
+};
+
+exports.getTodoById = (req, res) => {
+  const todos = readTodosFromFile();
+  const todo = todos.find((t) => t.id === parseInt(req.params.id));
+  if (todo) {
+    res.json(todo);
+  } else {
+    res.status(404).send('Todo not found');
+  }
+};
+
+exports.updateTodo = (req, res) => {
+  const todos = readTodosFromFile();
+  const index = todos.findIndex((t) => t.id === parseInt(req.params.id));
+  if (index !== -1) {
+    todos[index].title = req.body.title || todos[index].title;
+    todos[index].completed = req.body.completed || todos[index].completed;
+    writeTodosToFile(todos);
+    res.json(todos[index]);
+  } else {
+    res.status(404).send('Todo not found');
+  }
+};
+
+exports.deleteTodo = (req, res) => {
+  const todos = readTodosFromFile();
+  const index = todos.findIndex((t) => t.id === parseInt(req.params.id));
+  if (index !== -1) {
+    todos.splice(index, 1);
+    writeTodosToFile(todos);
+    res.status(204).send();
+  } else {
+    res.status(404).send('Todo not found');
+  }
+};
+```
+
+To run the application, execute the following command in the terminal:
+
+```bash
+npm install
+npm start
+```
+
+Now, you can access the todo app at http://localhost:8000/todos and use the API endpoints to manage your todos. The todos will be saved as JSON in the data/todos.json file.
